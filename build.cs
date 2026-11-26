@@ -14,3 +14,9 @@ PathInfo marmotteBuildFolder = srcPath / "Marmotte.Build";
 AnsiConsole.MarkupLine("Marmotte.Build [green1]folder[/]");
 AnsiConsole.MarkupLine($"[green1]{marmotteBuildFolder}[/]");
 
+
+PathInfo marmotteBuildChildren = srcPath / "Marmotte.Build" / "*.csproj";
+foreach (var child in marmotteBuildChildren.GetChildren())
+{
+    AnsiConsole.MarkupLine($"[green]{child}[/]");
+}
