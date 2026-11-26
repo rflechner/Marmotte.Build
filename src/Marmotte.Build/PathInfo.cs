@@ -33,6 +33,8 @@ public record PathInfo(string Value)
 
     /// <summary>True if a file exists at this path (hits the file system).</summary>
     public bool IsFile => File.Exists(Value);
+    
+    public static PathInfo CurrentDirectory => new(Environment.CurrentDirectory);
 
     private static string Normalize(string value)
     {
