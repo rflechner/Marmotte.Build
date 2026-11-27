@@ -10,6 +10,7 @@
     <ItemGroup>
         <PackageVersion Include="LibGit2Sharp" Version="0.32.0" />
         <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
+        <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.7.0" />
         <PackageVersion Include="Spectre.Console" Version="0.57.2" />
         <PackageVersion Include="xunit.v3" Version="4.0.3" />
         <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
