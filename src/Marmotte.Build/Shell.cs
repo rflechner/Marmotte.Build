@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Spectre.Console;
 
 namespace Marmotte.Build;
 
@@ -79,6 +80,8 @@ public static class Shell
         foreach (var argument in arguments)
             process.StartInfo.ArgumentList.Add(argument);
 
+        AnsiConsole.MarkupLine($"[gray]running [/][white]{command} {string.Join(' ', arguments)}[/]");
+        
         try
         {
             process.Start();
