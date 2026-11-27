@@ -31,10 +31,7 @@ public sealed class RemoteSession : IDisposable
             port ?? (useSsl ? 5986 : 5985),
             "wsman").Uri;
 
-        var connection = new WSManConnectionInfo(
-            endpoint,
-            "http://schemas.microsoft.com/powershell/Microsoft.PowerShell",
-            null)
+        var connection = new WSManConnectionInfo(endpoint)
         {
             AuthenticationMechanism = AuthenticationMechanism.Negotiate,
             OpenTimeout = 30_000,
