@@ -22,8 +22,9 @@ The current implementation provides the following building blocks:
 | `Shell` | Run an executable synchronously, with separate arguments and an optional working directory. |
 | `Dotnet` | Call the .NET CLI through small wrappers such as `Build`, `Test`, and `Pack`. |
 | `AzureDevOps` | Read predefined Azure Pipelines variables with IDE completion. |
+| `Targets` | Declare named targets with dependencies and conditions, then run one from the command line. |
 
-Your script controls execution order and decides how to handle failures. There is no task graph, dependency scheduler, or incremental build engine in Marmotte.Build itself.
+Targets are optional: a script can also run its steps with plain C# control flow. Targets run one after another; there is no parallel execution or incremental build engine.
 
 ## Prerequisites
 
@@ -41,7 +42,19 @@ From the repository root:
 dotnet run --file build.cs
 ```
 
-The checked-in [build.cs](build.cs) uses Marmotte.Build's own sources through `#:include`, so it does not depend on an already published Marmotte.Build package. It cleans, restores and builds the solution in Release, runs the tests, then packs the library into `artefacts/nugets`. Each command must succeed before the next one runs. The package output directory is recreated on each run to avoid publishing stale packages.
+The checked-in [build.cs](build.cs) uses Marmotte.Build's own sources through `#:include`, so it does not depend on an already published Marmotte.Build package. It declares the `Clean`, `Restore`, `Build`, `Test`, `Pack` and `Publish` targets, and runs `Publish` with its dependencies by default: it cleans, restores and builds the solution in Release, runs the tests, then packs the library into `artefacts/nugets`. Each target must succeed before the next one runs. The `Clean` target recreates the package output directory to avoid publishing stale packages. `Publish` only pushes packages when `--publish` is given; otherwise it is skipped.
+
+To run a single target with its dependencies, pass its name:
+
+```sh
+dotnet run --file build.cs -- --target Build
+```
+
+To print the dependency tree and execution order without running anything, add `--plan`:
+
+```sh
+dotnet run --file build.cs -- --plan
+```
 
 To also publish to `https://nuget.pkg.github.com/rflechner/index.json`, set `GITHUB_TOKEN` in your environment, then run:
 
@@ -125,6 +138,63 @@ dotnet run --file build-pipeline.cs -- Debug
 ```
 
 The script builds the solution, runs tests only after a successful build, and returns a non-zero exit code on failure. Command failures are returned as values; ignoring a result does not automatically stop the script.
+
+## Declare targets
+
+Declare each step as a target, list the targets it depends on, then run one of them:
+
+```csharp
+using static Marmotte.Build.Targets;
+
+var shouldDeploy = args.Contains("--deploy");
+
+Target("Clean", () => Dotnet.Clean());
+Target("Restore", () => Dotnet.Restore());
+Target("Build", ["Clean", "Restore"], () => Dotnet.Build(o => o with { NoRestore = true }));
+Target("Test", ["Build"], () => Dotnet.Test(o => o with { NoBuild = true }));
+Target("Deploy", ["Test"], () => Console.WriteLine("Deploying..."), when: () => shouldDeploy);
+Target("All", ["Deploy"]);
+
+return RunTarget(args, defaultTarget: "All");
+```
+
+```sh
+dotnet run --file build-pipeline.cs                    # runs All
+dotnet run --file build-pipeline.cs -- --target Build  # runs Clean, Restore, Build
+dotnet run --file build-pipeline.cs -- --deploy        # also runs Deploy
+dotnet run --file build-pipeline.cs -- --plan          # prints the plan of All, runs nothing
+```
+
+`--plan` prints the dependency tree of the selected target, marks targets that have a `when` condition, and lists the execution order:
+
+```text
+All
+└── Deploy (conditional)
+    └── Test
+        └── Build
+            ├── Clean
+            └── Restore
+Execution order: Clean, Restore, Build, Test, Deploy, All
+```
+
+A target shared by several targets appears under each of them in the tree, but runs once.
+
+| Feature | Behavior |
+| --- | --- |
+| Dependencies | Named by target, in any case, and declared in any order. They run depth first, in the order given, before the target. A target reached through several paths runs once. |
+| Actions | An `Action` fails the build by throwing. A lambda returning `ShellExecuteResult` fails the build when the command fails or cannot start. A target without an action only groups its dependencies. |
+| `when` | Evaluated right before the target runs, after its dependencies. When it returns `false`, the target is skipped, but its dependencies still run. |
+| `RunTarget(args, defaultTarget)` | Runs the target named by `--target <name>` (case-insensitive), or `defaultTarget`. With `--plan`, prints the plan instead of running it. Other arguments are ignored. Returns `0` on success and `1` on failure or unknown target, ready to `return` from the script. |
+
+Before running anything, or printing the plan, `RunTarget` checks every declared target, not only the selected one. It reports duplicate names (ignoring case), dependencies on undeclared targets and dependency cycles together, then returns `1`:
+
+```text
+Invalid targets:
+  - Target Deploy depends on unknown target Tset.
+  - Dependency cycle: Build -> Test -> Build.
+```
+
+Once the build has started, the first failure stops it and prints the exception.
 
 ## Read GitHub Actions variables
 

@@ -1,9 +1,11 @@
 #!/usr/bin/env dotnet
 #:package Spectre.Console
+#:property PublishAot=false
 #:include "src/Marmotte.Build/Runtime.cs"
 #:include "src/Marmotte.Build/PathInfo.cs"
 #:include "src/Marmotte.Build/CommandOptions.cs"
 #:include "src/Marmotte.Build/Shell.cs"
+#:include "src/Marmotte.Build/Targets.cs"
 #:include "src/Marmotte.Build/Dotnet/MSBuildCommandOptions.cs"
 #:include "src/Marmotte.Build/Dotnet/Dotnet.cs"
 #:include "src/Marmotte.Build/Dotnet/Dotnet.Clean.cs"
@@ -19,10 +21,10 @@ using Marmotte.Build;
 using Marmotte.Build.ContinuousIntegration;
 using Spectre.Console;
 using static Marmotte.Build.Shell;
+using static Marmotte.Build.Targets;
 
 const string nugetSource = "https://nuget.pkg.github.com/rflechner/index.json";
 const string configuration = "Release";
-var publish = args.Contains("--publish");
 var properties = ImmutableDictionary<string, string>.Empty;
 
 var versionIndex = Array.IndexOf(args, "--version");
@@ -52,13 +54,6 @@ else if (GitHubActions.RefType == "tag")
     properties = properties.SetItem("Version", version);
 }
 
-var githubToken = GitHubActions.GithubToken;
-if (publish && string.IsNullOrWhiteSpace(githubToken))
-{
-    Console.Error.WriteLine("Publishing requires GITHUB_TOKEN with permission to write GitHub Packages.");
-    return 1;
-}
-
 PathInfo root = Runtime.GetScriptDirectory();
 var solution = root / "Marmotte.Build.slnx";
 var project = root / "src" / "Marmotte.Build" / "Marmotte.Build.csproj";
@@ -66,25 +61,27 @@ var packagesDirectory = root / "artefacts" / "nugets";
 
 AnsiConsole.Write(new FigletText("Marmotte.Build").Color(Color.Green1));
 
-if (packagesDirectory.IsDirectory)
-    Directory.Delete(packagesDirectory, recursive: true);
-Directory.CreateDirectory(packagesDirectory);
+Target("Clean", () =>
+{
+    if (packagesDirectory.IsDirectory)
+        Directory.Delete(packagesDirectory, recursive: true);
+    Directory.CreateDirectory(packagesDirectory);
 
-var steps = new Dictionary<string, Func<ShellExecuteResult>>();
-steps.Add("Clean", () => Dotnet.Clean(o => o with
+    return Dotnet.Clean(o => o with
     {
         Project = solution,
         Configuration = configuration,
         Properties = properties,
-    }, workingDirectory: root));
+    }, workingDirectory: root);
+});
 
-steps.Add("Restore", () => Dotnet.Restore(o => o with
+Target("Restore", () => Dotnet.Restore(o => o with
 {
     Project = solution,
     Properties = properties,
 }, workingDirectory: root));
 
-steps.Add("Build", () => Dotnet.Build(o => o with
+Target("Build", ["Clean", "Restore"], () => Dotnet.Build(o => o with
 {
     Project = solution,
     Configuration = configuration,
@@ -92,7 +89,7 @@ steps.Add("Build", () => Dotnet.Build(o => o with
     Properties = properties,
 }, workingDirectory: root));
 
-steps.Add("Test", () => Dotnet.Test(o => o with
+Target("Test", ["Build"], () => Dotnet.Test(o => o with
 {
     Solution = solution,
     Configuration = configuration,
@@ -101,50 +98,50 @@ steps.Add("Test", () => Dotnet.Test(o => o with
     Properties = properties,
 }, workingDirectory: root));
 
-steps.Add("Pack", () => Dotnet.Pack(o => o with
+Target("Pack", ["Test"], () =>
 {
-    Project = project,
-    Configuration = configuration,
-    NoBuild = true,
-    NoRestore = true,
-    Output = packagesDirectory,
-    Properties = properties,
-}, workingDirectory: root));
+    Dotnet.Pack(o => o with
+    {
+        Project = project,
+        Configuration = configuration,
+        NoBuild = true,
+        NoRestore = true,
+        Output = packagesDirectory,
+        Properties = properties,
+    }, workingDirectory: root).ThrowIfNotFailed();
 
-foreach (var (name, step) in steps)
+    if (FindPackages().Length == 0)
+        throw new InvalidOperationException($"No NuGet packages were produced in {packagesDirectory}.");
+
+    Console.WriteLine($"Packages created in {packagesDirectory}.");
+});
+
+Target("Publish", ["Pack"], () =>
 {
-    AnsiConsole.MarkupLine($"[gold3]Running step {name}...[/]");
-    step().ThrowIfNotFailed();
-}
+    var githubToken = GitHubActions.GithubToken;
+    if (string.IsNullOrWhiteSpace(githubToken))
+        throw new InvalidOperationException("Publishing requires GITHUB_TOKEN with permission to write GitHub Packages.");
+    
+    // NuGet in .NET 11 reads the API key from the environment, keeping it out of Shell's command log.
+    var previousApiKey = Environment.GetEnvironmentVariable("NUGET_API_KEY");
+    try
+    {
+        Environment.SetEnvironmentVariable("NUGET_API_KEY", githubToken);
+        Dotnet.NuGet.Push(FindPackages(), o => o with
+        {
+            Source = nugetSource,
+            SkipDuplicate = true,
+            NoSymbols = true,
+        }, workingDirectory: root).ThrowIfNotFailed();
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("NUGET_API_KEY", previousApiKey);
+    }
+}, when: () => args.Contains("--publish"));
 
-var packages = (packagesDirectory / "*.nupkg").GetChildren()
+return RunTarget(args, defaultTarget: "Publish");
+
+PathInfo[] FindPackages() => (packagesDirectory / "*.nupkg").GetChildren()
     .Where(path => path.IsFile && !path.Name.EndsWith(".symbols.nupkg", StringComparison.OrdinalIgnoreCase))
     .ToArray();
-if (packages.Length == 0)
-{
-    Console.Error.WriteLine($"No NuGet packages were produced in {packagesDirectory}.");
-    return 1;
-}
-
-Console.WriteLine($"Packages created in {packagesDirectory}.");
-if (!publish)
-    return 0;
-
-// NuGet in .NET 11 reads the API key from the environment, keeping it out of Shell's command log.
-var previousApiKey = Environment.GetEnvironmentVariable("NUGET_API_KEY");
-try
-{
-    Environment.SetEnvironmentVariable("NUGET_API_KEY", githubToken);
-    Dotnet.NuGet.Push(packages, o => o with
-    {
-        Source = nugetSource,
-        SkipDuplicate = true,
-        NoSymbols = true,
-    }, workingDirectory: root).ThrowIfNotFailed();
-}
-finally
-{
-    Environment.SetEnvironmentVariable("NUGET_API_KEY", previousApiKey);
-}
-
-return 0;

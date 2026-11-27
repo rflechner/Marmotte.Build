@@ -10,4 +10,8 @@
         <PackageReference Include="Spectre.Console" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="Marmotte.Build.Tests" />
+    </ItemGroup>
+
 </Project>
