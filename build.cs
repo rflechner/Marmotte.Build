@@ -8,6 +8,7 @@
 #:include "src/Marmotte.Build/Dotnet/Dotnet.Clean.cs"
 #:include "src/Marmotte.Build/Dotnet/Dotnet.Build.cs"
 #:include "src/Marmotte.Build/Dotnet/Dotnet.Restore.cs"
+#:include "src/Marmotte.Build/Dotnet/Dotnet.Pack.cs"
 
 using Spectre.Console;
 using Marmotte.Build;
@@ -22,6 +23,8 @@ AnsiConsole.MarkupLine("Marmotte.Build [green1]folder[/]");
 AnsiConsole.MarkupLine($"[green1]{marmotteBuildFolder}[/]");
 
 var artefactsFolder = (PathInfo)"artefacts";
+var artefactsNugetsFolder = (PathInfo)"artefacts" / "nugets";
+
 Directory.Delete(artefactsFolder, recursive: true);
 
 PathInfo marmotteBuildProjects = srcPath / "Marmotte.Build" / "*.csproj";
@@ -45,6 +48,12 @@ foreach (var child in marmotteBuildProjects.GetChildren())
     {
         Project = child,
         Output = artefactsFolder / child.NameWithoutExtension
+    });
+    
+    Dotnet.Pack(o => o with
+    {
+        Project = child,
+        Output = artefactsNugetsFolder
     });
     
 }
