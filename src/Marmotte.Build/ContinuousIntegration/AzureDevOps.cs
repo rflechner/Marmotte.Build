@@ -1,4 +1,4 @@
-namespace Marmotte.Build.ContinuousIntergration;
+namespace Marmotte.Build.ContinuousIntegration;
 
 /// <summary>Reads Azure Pipelines variables from the current process environment.</summary>
 /// <remarks>Variable properties return the original string, or <see langword="null"/> when unavailable.</remarks>

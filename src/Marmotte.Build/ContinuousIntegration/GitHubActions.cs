@@ -1,4 +1,4 @@
-namespace Marmotte.Build.ContinuousIntergration;
+namespace Marmotte.Build.ContinuousIntegration;
 
 /// <summary>Reads GitHub Actions variables from the current process environment.</summary>
 /// <remarks>String properties return the exported value, or <see langword="null"/> when absent.</remarks>
@@ -16,6 +16,8 @@ public static class GitHubActions
 
     /// <summary>The CI marker exported to the process. (<c>CI</c>)</summary>
     public static string? CI => GetVariable("CI");
+    
+    public static string? GithubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
 
     /// <summary>The current action name or step identifier. (<c>GITHUB_ACTION</c>)</summary>
     public static string? Action => GetVariable("GITHUB_ACTION");

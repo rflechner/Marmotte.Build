@@ -1,5 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+    <PropertyGroup>
+        <Description>A minimalist C# DSL for scripting builds with .NET file-based apps.</Description>
+        <RepositoryUrl>https://github.com/rflechner/Marmotte.Build</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="Spectre.Console" />
     </ItemGroup>

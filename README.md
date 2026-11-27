@@ -33,7 +33,7 @@ Your script controls execution order and decides how to handle failures. There i
 
 [Directory.Build.props](Directory.Build.props) defines the target framework and language version. [global.json](global.json) selects Microsoft.Testing.Platform for tests; it does not pin an SDK version.
 
-## Try the existing example
+## Build and publish Marmotte.Build
 
 From the repository root:
 
@@ -41,7 +41,25 @@ From the repository root:
 dotnet run --file build.cs
 ```
 
-The checked-in [build.cs](build.cs) is a small path exploration demo: it loads `PathInfo.cs` with `#:include`, uses Spectre.Console for output, and lists the library's project file. It does not yet build or test the solution.
+The checked-in [build.cs](build.cs) uses Marmotte.Build's own sources through `#:include`, so it does not depend on an already published Marmotte.Build package. It cleans, restores and builds the solution in Release, runs the tests, then packs the library into `artefacts/nugets`. Each command must succeed before the next one runs. The package output directory is recreated on each run to avoid publishing stale packages.
+
+To also publish to `https://nuget.pkg.github.com/rflechner/index.json`, set `GITHUB_TOKEN` in your environment, then run:
+
+```sh
+dotnet run --file build.cs -- --publish
+```
+
+For local publishing, use a GitHub personal access token (classic) with `write:packages`. In GitHub Actions, expose `${{ secrets.GITHUB_TOKEN }}` as the `GITHUB_TOKEN` environment variable and grant the job `packages: write` (and `contents: read` for checkout). See [GitHub's NuGet registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry).
+
+The script passes the token through `NUGET_API_KEY`, supported by the NuGet CLI in .NET 11, without adding it to command arguments, logs or configuration files. See [NuGet API key environment variables](https://learn.microsoft.com/en-us/nuget/reference/nuget-config-file#apikeys).
+
+The version defaults to [Directory.Build.props](Directory.Build.props). Override it consistently for the build and package with:
+
+```sh
+dotnet run --file build.cs -- --publish --version 0.1.1
+```
+
+Omit `--publish` to validate and pack that version locally. Publishing requires `GITHUB_TOKEN` before any build step starts; existing package versions are skipped with `--skip-duplicate`, so increment the version to release changes. The package's repository metadata links it to `rflechner/Marmotte.Build` on GitHub.
 
 ## Write a build script
 

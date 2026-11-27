@@ -35,6 +35,19 @@ public static class Shell
     /// </summary>
     public union ShellExecuteResult(ShellExecuteSuccess, ShellExecuteFailure, ShellExecuteNotStarted);
 
+    public static void ThrowIfNotFailed(this ShellExecuteResult result)
+    {
+        if (result is ShellExecuteNotStarted notStarted)
+        {
+            throw new InvalidOperationException($"Could not start shell command: {notStarted.Command} - {notStarted.Reason}.");
+        }
+        
+        if (result is ShellExecuteFailure failure)
+        {
+            throw new InvalidOperationException($"Shell command failed with exit code {failure.ExitCode}.");
+        }
+    }
+    
     /// <summary>
     /// Executes the specified command with the provided arguments and waits for the process to exit.
     /// </summary>
@@ -66,7 +79,7 @@ public static class Shell
     /// A result indicating whether the process completed with a zero exit code, completed with a
     /// non-zero exit code, or could not be started (including when the working directory does not exist).
     /// </returns>
-    public static ShellExecuteResult Execute(string command, IEnumerable<string> arguments, PathInfo? workingDirectory)
+    public static ShellExecuteResult Execute(string command, IReadOnlyCollection<string> arguments, PathInfo? workingDirectory)
     {
         if (workingDirectory is not null && !workingDirectory.IsDirectory)
             return new ShellExecuteNotStarted(command, $"Working directory not found: {workingDirectory}");

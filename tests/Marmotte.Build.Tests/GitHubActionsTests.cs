@@ -1,4 +1,4 @@
-using Marmotte.Build.ContinuousIntergration;
+using Marmotte.Build.ContinuousIntegration;
 using Xunit;
 
 namespace Marmotte.Build.Tests;
