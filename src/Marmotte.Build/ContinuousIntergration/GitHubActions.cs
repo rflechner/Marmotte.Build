@@ -1,4 +1,4 @@
-namespace Marmotte.Build;
+namespace Marmotte.Build.ContinuousIntergration;
 
 /// <summary>Reads GitHub Actions variables from the current process environment.</summary>
 /// <remarks>String properties return the exported value, or <see langword="null"/> when absent.</remarks>

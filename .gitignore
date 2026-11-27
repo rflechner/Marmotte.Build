@@ -426,3 +426,5 @@ FodyWeavers.xsd
 #*.lscache
 
 .idea/
+
+artefacts/

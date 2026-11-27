@@ -61,6 +61,8 @@ public record PathInfo(string Value)
     /// <summary>True if this path is a glob pattern, i.e. it contains <c>*</c> or <c>?</c>.</summary>
     public bool IsGlob => HasWildcard(Value);
 
+    public string NameWithoutExtension => Value.Split(Path.DirectorySeparatorChar).Last().Split('.').First();
+
     public static PathInfo CurrentDirectory => new(Environment.CurrentDirectory);
 
     /// <summary>

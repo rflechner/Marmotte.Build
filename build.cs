@@ -21,6 +21,7 @@ PathInfo marmotteBuildFolder = srcPath / "Marmotte.Build";
 AnsiConsole.MarkupLine("Marmotte.Build [green1]folder[/]");
 AnsiConsole.MarkupLine($"[green1]{marmotteBuildFolder}[/]");
 
+var artefactsFolder = (PathInfo)"artefacts";
 
 PathInfo marmotteBuildProjects = srcPath / "Marmotte.Build" / "*.csproj";
 foreach (var child in marmotteBuildProjects.GetChildren())
@@ -29,16 +30,21 @@ foreach (var child in marmotteBuildProjects.GetChildren())
     
     AnsiConsole.MarkupLine("Marmotte.Build [white]Building Marmotte.Build[/]");
 
+    Dotnet.Clean(o => o with
+    {
+        Project = child
+    });
+    
     Dotnet.Restore(o => o with
     {
         Project = child
     });
-
-
+    
     Dotnet.Build(o => o with
     {
         Project = child,
-    
+        Output = artefactsFolder / child.NameWithoutExtension
     });
+    
 }
 
