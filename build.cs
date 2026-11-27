@@ -2,21 +2,7 @@
 #:package Spectre.Console
 #:package LibGit2Sharp
 #:property PublishAot=false
-#:include "src/Marmotte.Build/Runtime.cs"
-#:include "src/Marmotte.Build/PathInfo.cs"
-#:include "src/Marmotte.Build/CommandOptions.cs"
-#:include "src/Marmotte.Build/Shell.cs"
-#:include "src/Marmotte.Build/Targets.cs"
-#:include "src/Marmotte.Build/Dotnet/MSBuildCommandOptions.cs"
-#:include "src/Marmotte.Build/Dotnet/Dotnet.cs"
-#:include "src/Marmotte.Build/Dotnet/Dotnet.Clean.cs"
-#:include "src/Marmotte.Build/Dotnet/Dotnet.Build.cs"
-#:include "src/Marmotte.Build/Dotnet/Dotnet.Restore.cs"
-#:include "src/Marmotte.Build/Dotnet/Dotnet.Test.cs"
-#:include "src/Marmotte.Build/Dotnet/Dotnet.Pack.cs"
-#:include "src/Marmotte.Build/Dotnet/Dotnet.NuGet.cs"
-#:include "src/Marmotte.Build/ContinuousIntegration/GitHubActions.cs"
-#:include "src/Marmotte.Build/VersionControl/Git.cs"
+#:project "src/Marmotte.Build/Marmotte.Build.csproj"
 
 using System.Collections.Immutable;
 using Marmotte.Build;
