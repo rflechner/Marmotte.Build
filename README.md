@@ -17,6 +17,7 @@ The current implementation provides the following building blocks:
 
 | API | Purpose |
 | --- | --- |
+| `GitHubActions` | Read GitHub Actions and runner variables with IDE completion. |
 | `PathInfo` | Compose paths, check files and directories, and enumerate glob matches. |
 | `Shell` | Run an executable synchronously, with separate arguments and an optional working directory. |
 | `Dotnet` | Call the .NET CLI through small wrappers such as `Build`, `Test`, and `Pack`. |
@@ -95,6 +96,25 @@ dotnet run --file build-pipeline.cs -- Debug
 ```
 
 The script builds the solution, runs tests only after a successful build, and returns a non-zero exit code on failure. Command failures are returned as values; ignoring a result does not automatically stop the script.
+
+## Read GitHub Actions variables
+
+In a file-based build script, include the helper and type `GitHubActions.` to browse workflow variables or `GitHubActions.Runner.` for runner details.
+
+```csharp
+#!/usr/bin/env dotnet
+#:include "src/Marmotte.Build/GitHubActions.cs"
+
+using Marmotte.Build;
+
+if (GitHubActions.IsRunning)
+    Console.WriteLine($"{GitHubActions.Repository} run #{GitHubActions.RunNumber} on {GitHubActions.Runner.OS}");
+
+if (GitHubActions.HeadRef is { Length: > 0 } source && GitHubActions.BaseRef is { Length: > 0 } target)
+    Console.WriteLine($"Validating {source} into {target}");
+```
+
+Each string property reads the current environment value and returns `null` if the variable is absent. `IsRunning` checks `GITHUB_ACTIONS`. Use `GitHubActions.GetVariable("BUILD_CONFIGURATION")` for a custom name exported through the workflow's `env`. The [GitHub Actions variables reference](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables) lists the defaults and when they are available.
 
 ## Paths and globs
 
