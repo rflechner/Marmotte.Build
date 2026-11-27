@@ -22,6 +22,7 @@ AnsiConsole.MarkupLine("Marmotte.Build [green1]folder[/]");
 AnsiConsole.MarkupLine($"[green1]{marmotteBuildFolder}[/]");
 
 var artefactsFolder = (PathInfo)"artefacts";
+Directory.Delete(artefactsFolder, recursive: true);
 
 PathInfo marmotteBuildProjects = srcPath / "Marmotte.Build" / "*.csproj";
 foreach (var child in marmotteBuildProjects.GetChildren())
