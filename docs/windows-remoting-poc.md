@@ -25,27 +25,30 @@ internet. On managed machines, follow your administrator's policy.
 From the repository root, still in the elevated terminal, with the .NET 11 SDK:
 
 ```powershell
-dotnet run --file examples/windows-remoting.cs
+dotnet run --file deploy.cs
 ```
 
 Expected output (values depend on the machine):
 
 ```text
 Remote computer: MY-PC
-Remote user: my-user
-WinRM service: Running
+Remote file: C:\Users\my-user\AppData\Local\Temp\marmotte-deploy-<unique-id>.txt
+Remote write/read verification succeeded.
 ```
 
-The example opens a real loopback remoting session and executes three read-only
-commands in the same remote runspace. It closes the session even if a command
-fails and exits nonzero on failure. No password is requested by the example;
+The example opens a real loopback remoting session, discovers the remote TEMP
+folder, writes a unique text file using New-Item, and reads it back with
+Get-Content to verify the exact payload sent by the client. It deliberately
+leaves the file on the target for manual inspection and does not overwrite
+existing files. It closes the session even if a command fails and exits
+nonzero on failure. No password is requested by the example;
 the connection uses the Windows identity of the calling process.
 
 For a trusted remote host with WinRM already configured and permissions granted,
 you can pass its DNS name:
 
 ```powershell
-dotnet run --file examples/windows-remoting.cs -- server.example.test
+dotnet run --file deploy.cs -- server.example.test
 ```
 
 The helper supports HTTP (5985) or HTTPS (5986) with normal certificate
@@ -58,12 +61,14 @@ server's permissions work.
 ## Scope
 
 - Reusable synchronous session and parameterized command invocation.
-- Windows only at runtime; the project is built with the solution.
-- No publishing changes, no remote configuration changes by the example, no
+- Windows only at runtime; the project is built with the solution but is not
+  packable yet. A future Unix/SSH implementation will live in a separate project.
+- No publishing changes, no remote configuration changes by the example (only a uniquely named
+  temporary text file), no
   automatic deployment and no remoting requirement for the normal CI tests.
 - The connection uses a 30-second open timeout and a 60-second WSMan operation
   timeout (not an overall command deadline).
-- File transfers, service management, explicit credentials, cancellation and
+- Binary/package uploads, service management, explicit credentials, cancellation and
   rollback are intentionally deferred until the transport is validated.
 
 References:
