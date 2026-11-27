@@ -13,13 +13,14 @@ Write your build as a C# file, compose paths with `/`, find files with globs, an
 
 <img src="docs/images/references/experimental-proof-of-concept.png" alt="The Marmotte mascot experimenting beside an Experimental Proof of Concept sign" width="320" />
 
-The current implementation provides three building blocks:
+The current implementation provides the following building blocks:
 
 | API | Purpose |
 | --- | --- |
 | `PathInfo` | Compose paths, check files and directories, and enumerate glob matches. |
 | `Shell` | Run an executable synchronously, with separate arguments and an optional working directory. |
 | `Dotnet` | Call the .NET CLI through small wrappers such as `Build`, `Test`, and `Pack`. |
+| `AzureDevOps` | Read predefined Azure Pipelines variables with IDE completion. |
 
 Your script controls execution order and decides how to handle failures. There is no task graph, dependency scheduler, or incremental build engine in Marmotte.Build itself.
 
@@ -153,6 +154,27 @@ var info = Dotnet.Execute("--info");
 ```
 
 These are independent examples; handle each result when composing a pipeline. Every wrapper accepts an optional argument collection and `workingDirectory`. Arguments are forwarded to the installed .NET CLI without validation or additional defaults. Use `Dotnet.Execute` for commands without a dedicated wrapper or for global options. See [Dotnet.cs](src/Marmotte.Build/Dotnet.cs) for the complete set of wrappers.
+
+## Read Azure Pipelines variables
+
+Include the helper in a file-based build script and type `AzureDevOps.Build.` in your IDE to browse build variables. The groups follow Azure Pipelines naming, including `Agent`, `System.PullRequest`, and `Release`.
+
+```csharp
+#!/usr/bin/env dotnet
+#:include "src/Marmotte.Build/AzureDevOps.cs"
+
+using Marmotte.Build;
+
+if (AzureDevOps.IsRunning)
+    Console.WriteLine($"Build {AzureDevOps.Build.BuildNumber} on {AzureDevOps.Build.SourceBranch}");
+
+if (AzureDevOps.System.PullRequest.TargetBranch is { } target)
+    Console.WriteLine($"Validating a pull request into {target}");
+```
+
+Each property reads a nullable string from the current process environment. A local run or a job outside a variable's scope gets `null` when the variable is absent. For names that depend on your pipeline, use `AzureDevOps.GetVariable("resources.pipeline.upstream.runID")` with your resource alias.
+
+To read `AzureDevOps.System.AccessToken` in a YAML step, explicitly map `SYSTEM_ACCESSTOKEN: $(System.AccessToken)` under the step's `env`. See the [predefined build variables](https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops), [classic release variables](https://learn.microsoft.com/en-us/azure/devops/pipelines/release/variables?view=azure-devops), and [pipeline resource variables](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/resources-pipelines-pipeline?view=azure-pipelines).
 
 ## Build and test the library
 
