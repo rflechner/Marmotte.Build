@@ -17,12 +17,40 @@
 using System.Collections.Immutable;
 using Marmotte.Build;
 using Marmotte.Build.ContinuousIntegration;
+using Spectre.Console;
 using static Marmotte.Build.Shell;
 
 const string nugetSource = "https://nuget.pkg.github.com/rflechner/index.json";
 const string configuration = "Release";
 var publish = args.Contains("--publish");
 var properties = ImmutableDictionary<string, string>.Empty;
+
+var versionIndex = Array.IndexOf(args, "--version");
+if (versionIndex >= 0)
+{
+    if (versionIndex + 1 >= args.Length || string.IsNullOrWhiteSpace(args[versionIndex + 1])
+        || args[versionIndex + 1].StartsWith('-'))
+    {
+        Console.Error.WriteLine("--version requires a NuGet version, such as 1.2.3 or 1.2.3-preview.1.");
+        return 1;
+    }
+
+    properties = properties.SetItem("Version", args[versionIndex + 1]);
+}
+else if (GitHubActions.RefType == "tag")
+{
+    var version = GitHubActions.RefName;
+    if (version?.StartsWith('v') == true)
+        version = version[1..];
+
+    if (string.IsNullOrWhiteSpace(version))
+    {
+        Console.Error.WriteLine("GITHUB_REF_NAME must contain a NuGet version when GITHUB_REF_TYPE is tag.");
+        return 1;
+    }
+
+    properties = properties.SetItem("Version", version);
+}
 
 var githubToken = GitHubActions.GithubToken;
 if (publish && string.IsNullOrWhiteSpace(githubToken))

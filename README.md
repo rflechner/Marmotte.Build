@@ -53,13 +53,24 @@ For local publishing, use a GitHub personal access token (classic) with `write:p
 
 The script passes the token through `NUGET_API_KEY`, supported by the NuGet CLI in .NET 11, without adding it to command arguments, logs or configuration files. See [NuGet API key environment variables](https://learn.microsoft.com/en-us/nuget/reference/nuget-config-file#apikeys).
 
-The version defaults to [Directory.Build.props](Directory.Build.props). Override it consistently for the build and package with:
+The script reads the version from `GitHubActions.RefName` when `GitHubActions.RefType` is `tag`, removing an optional leading `v`. Otherwise, the version defaults to [Directory.Build.props](Directory.Build.props). An explicit `--version` takes precedence over both for the build and package:
 
 ```sh
 dotnet run --file build.cs -- --publish --version 0.1.1
 ```
 
 Omit `--publish` to validate and pack that version locally. Publishing requires `GITHUB_TOKEN` before any build step starts; existing package versions are skipped with `--skip-duplicate`, so increment the version to release changes. The package's repository metadata links it to `rflechner/Marmotte.Build` on GitHub.
+
+### Publish from a Git tag
+
+The [Publish NuGet package workflow](.github/workflows/publish-nuget.yml) runs when a new tag is pushed. It installs .NET 11 and runs `dotnet run --file build.cs -- --publish`; `build.cs` reads the tag directly through Marmotte.Build's `GitHubActions` helper. For example, `v0.1.1` and `0.1.1` both publish version `0.1.1`, while `v0.2.0-preview.1` publishes `0.2.0-preview.1`. Tags must contain a valid NuGet version; invalid versions fail the build instead of publishing the default version. Updating or deleting an existing tag does not publish a package.
+
+The workflow uses the automatic `GITHUB_TOKEN` with `contents: read` and `packages: write`; no personal access token secret is needed. Create the tag on a commit containing the workflow and updated build script, then push it:
+
+```sh
+git tag v0.1.1
+git push origin v0.1.1
+```
 
 ## Write a build script
 

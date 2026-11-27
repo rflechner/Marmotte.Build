@@ -1,0 +1,31 @@
+name: Publish NuGet package
+
+on:
+  push:
+    tags:
+      - '**'
+
+jobs:
+  publish:
+    if: github.event.created && !github.event.deleted
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out tagged commit
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6.1.0
+        with:
+          dotnet-version: '11.0.x'
+
+      - name: Build, test and publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: dotnet run --file build.cs -- --publish
