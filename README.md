@@ -21,6 +21,7 @@ The current implementation provides the following building blocks:
 | `PathInfo` | Compose paths, check files and directories, and enumerate glob matches. |
 | `Shell` | Run an executable synchronously, with separate arguments and an optional working directory. |
 | `Dotnet` | Call the .NET CLI through small wrappers such as `Build`, `Test`, and `Pack`. |
+| `Git` | Read the branch, commits and tags of a repository, then stage, commit and tag, with LibGit2Sharp. |
 | `AzureDevOps` | Read predefined Azure Pipelines variables with IDE completion. |
 | `Targets` | Declare named targets with dependencies and conditions, then run one from the command line. |
 
@@ -274,6 +275,62 @@ var info = Dotnet.Execute("--info");
 
 These are independent examples; handle each result when composing a pipeline. Every wrapper accepts an optional argument collection and `workingDirectory`. Arguments are forwarded to the installed .NET CLI without validation or additional defaults. Use `Dotnet.Execute` for commands without a dedicated wrapper or for global options. See [Dotnet.cs](src/Marmotte.Build/Dotnet.cs) for the complete set of wrappers.
 
+## Read and update the Git repository
+
+`Git` uses [LibGit2Sharp](https://github.com/libgit2/libgit2sharp), so it does not need the `git` executable. In a file-based build script, reference the package and include the helper:
+
+```csharp
+#!/usr/bin/env dotnet
+#:package LibGit2Sharp@0.32.0
+#:include "src/Marmotte.Build/PathInfo.cs"
+#:include "src/Marmotte.Build/VersionControl/Git.cs"
+
+using Marmotte.Build;
+using Marmotte.Build.VersionControl;
+
+using var git = Git.Open(PathInfo.CurrentDirectory);
+
+Console.WriteLine($"{git.Branch ?? "detached HEAD"} at {git.Head.ShortSha} ({git.Describe()})");
+
+if (git.LatestTag is { } tag)
+    Console.WriteLine($"Latest tag: {tag.Name}");
+
+if (git.IsDirty)
+{
+    git.StageAll();
+    git.Commit("chore: update generated files");
+}
+
+git.CreateTag("v1.2.3", message: "Release 1.2.3");
+```
+
+In a repository that manages package versions centrally, such as this one, omit the version from the directive (`#:package LibGit2Sharp`): .NET rejects a version there and uses `Directory.Packages.props` instead.
+
+Open the repository once and dispose it at the end of the script. Properties read the repository on each access, so they reflect the commits and tags created in the meantime.
+
+| Member | Behavior |
+| --- | --- |
+| `Git.Open(path)` | Opens the repository containing `path`, or the current directory, searching parent directories. Fails outside a repository. |
+| `RootDirectory` | The root of the working directory. |
+| `Branch` | The checked-out branch, or `null` when HEAD is detached, as in many CI builds of tags and pull requests. |
+| `Head` | The HEAD commit: `Sha`, `ShortSha`, `Message`, `MessageShort`, author and date. Fails before the first commit. |
+| `IsDirty` | `true` when staged, modified or untracked files differ from HEAD. Ignored files do not count. |
+| `Tags`, `TagsAtHead` | All tags, or the tags on HEAD, sorted by name. A tag's `Sha` is the commit it points to, even for an annotated tag. |
+| `LatestTag` | The tag on the closest commit reachable from HEAD, or `null`. When several tags share that commit, the first by name wins. |
+| `Describe()` | Like `git describe --tags`: `v1.2.3`, `v1.2.3-4-gabc1234`, or the short commit identifier when no tag is reachable. |
+| `Stage(paths)`, `StageAll()` | Like `git add`, including deleted files. Paths are relative to `RootDirectory` or absolute, and accept patterns such as `src/*.cs`. |
+| `Commit(message, author)` | Commits the staged changes and returns the new HEAD. Without `author`, uses `user.name` and `user.email` from the Git configuration. Fails when nothing is staged. |
+| `CreateTag(name, message, tagger)` | Tags HEAD: a lightweight tag without `message`, an annotated tag with it. Fails when the tag already exists. |
+| `Repository` | The LibGit2Sharp `Repository`, for anything else. |
+
+CI runners usually have no Git identity: pass one, such as `git.Commit("chore: bump version", new GitIdentity("Build Bot", "bot@example.com"))`. By default, `actions/checkout` fetches a single commit without tags; set `fetch-depth: 0` so `LatestTag` and `Describe()` can find them.
+
+Pushing and fetching are not wrapped: they need credentials, and LibGit2Sharp does not support SSH remotes. Run the Git CLI instead:
+
+```csharp
+Shell.Execute("git", ["push", "origin", "v1.2.3"], workingDirectory: git.RootDirectory).ThrowIfNotFailed();
+```
+
 ## Read Azure Pipelines variables
 
 Include the helper in a file-based build script and type `AzureDevOps.Build.` in your IDE to browse build variables. The groups follow Azure Pipelines naming, including `Agent`, `System.PullRequest`, and `Release`.
@@ -305,7 +362,7 @@ dotnet build Marmotte.Build.slnx --configuration Release --no-restore
 dotnet test --solution Marmotte.Build.slnx --configuration Release --no-build --no-restore
 ```
 
-The tests cover path composition and normalization, glob matching, process results, argument handling, working directories, and .NET command execution. Some process tests intentionally invoke failing commands, so their console output includes expected errors. Two tests use the Unix `test` executable and are skipped on Windows.
+The tests cover path composition and normalization, glob matching, process results, argument handling, working directories, .NET command execution, and Git operations on temporary repositories. Some process tests intentionally invoke failing commands, so their console output includes expected errors. Two tests use the Unix `test` executable and are skipped on Windows.
 
 ## Mascot and license
 

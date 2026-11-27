@@ -1,5 +1,6 @@
 #!/usr/bin/env dotnet
 #:package Spectre.Console
+#:package LibGit2Sharp
 #:property PublishAot=false
 #:include "src/Marmotte.Build/Runtime.cs"
 #:include "src/Marmotte.Build/PathInfo.cs"
@@ -15,10 +16,12 @@
 #:include "src/Marmotte.Build/Dotnet/Dotnet.Pack.cs"
 #:include "src/Marmotte.Build/Dotnet/Dotnet.NuGet.cs"
 #:include "src/Marmotte.Build/ContinuousIntegration/GitHubActions.cs"
+#:include "src/Marmotte.Build/VersionControl/Git.cs"
 
 using System.Collections.Immutable;
 using Marmotte.Build;
 using Marmotte.Build.ContinuousIntegration;
+using Marmotte.Build.VersionControl;
 using Spectre.Console;
 using static Marmotte.Build.Shell;
 using static Marmotte.Build.Targets;
@@ -60,6 +63,9 @@ var project = root / "src" / "Marmotte.Build" / "Marmotte.Build.csproj";
 var packagesDirectory = root / "artefacts" / "nugets";
 
 AnsiConsole.Write(new FigletText("Marmotte.Build").Color(Color.Green1));
+
+AnsiConsole.MarkupLine($"[blue]Current branch:[/] {Git.CurrentRepository.Branch}");
+AnsiConsole.MarkupLine($"[blue]Current tag:[/] {Git.CurrentRepository.LatestTag?.Name}");
 
 Target("Clean", () =>
 {
