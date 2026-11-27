@@ -1,6 +1,13 @@
 ﻿// #!/usr/bin/env dotnet
 #:package Spectre.Console
 #:include "src/Marmotte.Build/PathInfo.cs"
+#:include "src/Marmotte.Build/CommandOptions.cs"
+#:include "src/Marmotte.Build/Shell.cs"
+#:include "src/Marmotte.Build/Dotnet/MSBuildCommandOptions.cs"
+#:include "src/Marmotte.Build/Dotnet/Dotnet.cs"
+#:include "src/Marmotte.Build/Dotnet/Dotnet.Clean.cs"
+#:include "src/Marmotte.Build/Dotnet/Dotnet.Build.cs"
+#:include "src/Marmotte.Build/Dotnet/Dotnet.Restore.cs"
 
 using Spectre.Console;
 using Marmotte.Build;
@@ -15,8 +22,23 @@ AnsiConsole.MarkupLine("Marmotte.Build [green1]folder[/]");
 AnsiConsole.MarkupLine($"[green1]{marmotteBuildFolder}[/]");
 
 
-PathInfo marmotteBuildChildren = srcPath / "Marmotte.Build" / "*.csproj";
-foreach (var child in marmotteBuildChildren.GetChildren())
+PathInfo marmotteBuildProjects = srcPath / "Marmotte.Build" / "*.csproj";
+foreach (var child in marmotteBuildProjects.GetChildren())
 {
     AnsiConsole.MarkupLine($"[green]{child}[/]");
+    
+    AnsiConsole.MarkupLine("Marmotte.Build [white]Building Marmotte.Build[/]");
+
+    Dotnet.Restore(o => o with
+    {
+        Project = child
+    });
+
+
+    Dotnet.Build(o => o with
+    {
+        Project = child,
+    
+    });
 }
+
