@@ -2,7 +2,7 @@ using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Runtime.Versioning;
 
-namespace Marmotte.Build.Deploy.Windows;
+namespace Marmotte.Deploy.Windows;
 
 /// <summary>
 /// A synchronous, reusable PowerShell Remoting session over WSMan.

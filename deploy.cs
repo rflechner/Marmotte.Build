@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet
-#:project src/Marmotte.Build.Deploy.Windows/Marmotte.Build.Deploy.Windows.csproj
+#:project src/Marmotte.Deploy.Windows/Marmotte.Deploy.Windows.csproj
 #:property PublishAot=false
 
 using Marmotte.Build.Deploy.Windows;
