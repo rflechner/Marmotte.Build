@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <Description>A minimalist C# DSL for scripting builds with .NET file-based apps.</Description>
-        <RepositoryUrl>https://github.com/rflechner/Marmotte.Build</RepositoryUrl>
+        <RepositoryUrl>https://github.com/rflechner/Marmotte.Devops</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
     </PropertyGroup>
 

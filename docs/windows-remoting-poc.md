@@ -1,6 +1,9 @@
-# Windows remoting proof of concept
+# Marmotte.Devops — Windows remoting proof of concept
 
-This is an experimental, agentless Windows deployment building block. It uses
+[`Marmotte.Deploy.Windows`](../src/Marmotte.Deploy.Windows) is the experimental,
+agentless Windows deployment component of [Marmotte.Devops](../README.md#build-and-deploy).
+It is separate from the `Marmotte.Build` library and is exercised by
+[`deploy.cs`](../deploy.cs). It uses
 the Microsoft PowerShell SDK and a WSMan runspace, not a child process or an
 Azure DevOps deployment agent. The default endpoint is Windows PowerShell
 (`Microsoft.PowerShell`), so PowerShell 7 need not be installed on the target.
@@ -61,8 +64,9 @@ server's permissions work.
 ## Scope
 
 - Reusable synchronous session and parameterized command invocation.
-- Windows only at runtime; the project is built with the solution but is not
-  packable yet. A future Unix/SSH implementation will live in a separate project.
+- Windows only at runtime; the project is built with `Marmotte.Devops.slnx` but is not
+  packable yet. The separate [SSH deployment proof of concept](ssh-deploy.md)
+  uses OpenSSH for cross-platform remote commands and file transfers.
 - No publishing changes, no remote configuration changes by the example (only a uniquely named
   temporary text file), no
   automatic deployment and no remoting requirement for the normal CI tests.

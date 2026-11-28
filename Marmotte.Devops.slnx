@@ -9,7 +9,12 @@
     <File Path="deploy.cs" />
     <File Path="README.md" />
   </Folder>
-  <Project Path="src/Marmotte.Deploy.Windows/Marmotte.Deploy.Windows.csproj" />
-  <Project Path="src\Marmotte.Build\Marmotte.Build.csproj" />
-  <Project Path="tests\Marmotte.Build.Tests\Marmotte.Build.Tests.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/Marmotte.Deploy.Windows/Marmotte.Deploy.Windows.csproj" />
+    <Project Path="src/Marmotte.Deploy/Marmotte.Deploy.csproj" />
+    <Project Path="src\Marmotte.Build\Marmotte.Build.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests\Marmotte.Build.Tests\Marmotte.Build.Tests.csproj" />
+  </Folder>
 </Solution>

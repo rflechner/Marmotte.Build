@@ -58,11 +58,11 @@ else if (GitHubActions.RefType == "tag")
 }
 
 PathInfo root = Runtime.GetScriptDirectory();
-var solution = root / "Marmotte.Build.slnx";
+var solution = root / "Marmotte.Devops.slnx";
 var project = root / "src" / "Marmotte.Build" / "Marmotte.Build.csproj";
 var packagesDirectory = root / "artefacts" / "nugets";
 
-AnsiConsole.Write(new FigletText("Marmotte.Build").Color(Color.Green1));
+AnsiConsole.Write(new FigletText("Marmotte.Devops").Color(Color.Green1));
 
 AnsiConsole.MarkupLine($"[blue]Current branch:[/] {Git.CurrentRepository.Branch}");
 AnsiConsole.MarkupLine($"[blue]Current tag:[/] {Git.CurrentRepository.LatestTag?.Name}");

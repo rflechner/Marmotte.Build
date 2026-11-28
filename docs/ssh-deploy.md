@@ -1,9 +1,13 @@
-# 🚀 SSH deployment
+# 🚀 Marmotte.Devops — SSH deployment
 
-Marmotte.Build deploys over SSH with the OpenSSH client (`ssh`, `scp`) that
+The SSH deployment proof of concept in Marmotte.Devops uses the OpenSSH client (`ssh`, `scp`) that
 already ships with Windows, Linux and macOS. Nothing to install on the targets
 besides an SSH server, no extra NuGet package, and one script for every OS:
 [`deploy-ssh.cs`](../deploy-ssh.cs).
+
+This script belongs to the Deploy side of [Marmotte.Devops](../README.md#build-and-deploy).
+It currently reuses `Marmotte.Build` for paths and process execution; it is independent
+of the build and package workflow and does not use `Marmotte.Deploy.Windows`.
 
 > 🧪 **Experimental.** This is a proof of concept: the script and the steps below may change.
 

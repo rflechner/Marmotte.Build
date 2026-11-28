@@ -1,10 +1,23 @@
-# Marmotte.Build
+# Marmotte.Devops
 
-![Marmotte.Build: the turquoise mascot coding a C# build pipeline on a laptop above a wooden sign](docs/images/marmotte-build-banner.png)
+![Marmotte.Devops: the turquoise mascot at a laptop with separate Build and Deploy workflows above a wooden sign](docs/images/marmotte-devops-banner.png)
 
-A minimalist C# DSL for scripting builds with .NET file-based apps.
+A minimalist C# toolkit for scripting builds and deployments with .NET file-based apps.
 
-Write your build as a C# file, compose paths with `/`, find files with globs, and run commands with explicit results. Build steps follow normal C# control flow: variables, functions, loops, and pattern matching.
+Marmotte.Devops is the repository and solution name. Build and Deploy have separate responsibilities: **Build** compiles, tests, and packages applications; **Deploy** handles remote execution and delivery to target machines.
+
+Write your automation as C# files, compose paths with `/`, find files with globs, and run commands with explicit results. Steps follow normal C# control flow: variables, functions, loops, and pattern matching.
+
+## Build and Deploy
+
+| Component | Responsibility | Entry point |
+| --- | --- | --- |
+| [Marmotte.Build](src/Marmotte.Build) | Build orchestration, .NET CLI commands, paths, processes, Git, and CI variables. | [build.cs](build.cs) and the [build scripting guide](#write-a-build-script). |
+| [Marmotte.Deploy](src/Marmotte.Deploy) | Shared deployment project, currently a scaffold. | Deployment APIs are still being developed. |
+| [Marmotte.Deploy.Windows](src/Marmotte.Deploy.Windows) | Experimental Windows deployment through PowerShell Remoting / WinRM. | [deploy.cs](deploy.cs) and the [Windows remoting guide](docs/windows-remoting-poc.md). |
+| SSH deployment script | Experimental cross-platform remote commands and file transfers using OpenSSH and Marmotte.Build's process helpers. | [deploy-ssh.cs](deploy-ssh.cs) and the [SSH deployment guide](docs/ssh-deploy.md). |
+
+The solution is [Marmotte.Devops.slnx](Marmotte.Devops.slnx). The build library and its NuGet package retain the name `Marmotte.Build`.
 
 ## Project status
 
@@ -13,7 +26,7 @@ Write your build as a C# file, compose paths with `/`, find files with globs, an
 
 <img src="docs/images/references/experimental-proof-of-concept.png" alt="The Marmotte mascot experimenting beside an Experimental Proof of Concept sign" width="320" />
 
-The current implementation provides the following building blocks:
+The `Marmotte.Build` library currently provides the following building blocks:
 
 | API | Purpose |
 | --- | --- |
@@ -35,7 +48,7 @@ Targets are optional: a script can also run its steps with plain C# control flow
 
 [Directory.Build.props](Directory.Build.props) defines the target framework and language version. [global.json](global.json) selects Microsoft.Testing.Platform for tests; it does not pin an SDK version.
 
-## Build and publish Marmotte.Build
+## Build Marmotte.Devops and publish Marmotte.Build
 
 From the repository root:
 
@@ -73,7 +86,7 @@ The script reads the version from `GitHubActions.RefName` when `GitHubActions.Re
 dotnet run --file build.cs -- --publish --version 0.1.1
 ```
 
-Omit `--publish` to validate and pack that version locally. Publishing requires `GITHUB_TOKEN` before any build step starts; existing package versions are skipped with `--skip-duplicate`, so increment the version to release changes. The package's repository metadata links it to `rflechner/Marmotte.Build` on GitHub.
+Omit `--publish` to validate and pack that version locally. Publishing requires `GITHUB_TOKEN`; existing package versions are skipped with `--skip-duplicate`, so increment the version to release changes. The package's repository metadata links it to `rflechner/Marmotte.Devops` on GitHub. The script builds and tests the solution, then packs and publishes only `Marmotte.Build`; the deployment projects are not published by this workflow.
 
 ### Publish from a Git tag
 
@@ -88,13 +101,12 @@ git push origin v0.1.1
 
 ## Write a build script
 
-The following example uses the sources directly. Save it as `build-pipeline.cs` at the repository root, then run it from that directory. The `#:include` directives bring the three building blocks into the file-based app without a separate script project.
+The following example references the local build project. Save it as `build-pipeline.cs` at the repository root, then run it from that directory. The `#:project` directive makes the library and its dependencies available to the file-based app without a published package.
 
 ```csharp
 #!/usr/bin/env dotnet
-#:include "src/Marmotte.Build/PathInfo.cs"
-#:include "src/Marmotte.Build/Shell.cs"
-#:include "src/Marmotte.Build/Dotnet.cs"
+#:project src/Marmotte.Build/Marmotte.Build.csproj
+#:property PublishAot=false
 
 using Marmotte.Build;
 using static Marmotte.Build.Shell;
@@ -105,15 +117,22 @@ var configuration = args.Length > 0 ? args[0] : "Release";
 foreach (var project in (root / "src" / "**" / "*.csproj").GetChildren())
     Console.WriteLine($"Project: {project}");
 
-var buildExitCode = GetExitCode(Dotnet.Build(
-    ["Marmotte.Build.slnx", "--configuration", configuration],
+var buildExitCode = GetExitCode(Dotnet.Build(o => o with
+    {
+        Project = root / "Marmotte.Devops.slnx",
+        Configuration = configuration,
+    },
     workingDirectory: root));
 
 if (buildExitCode != 0)
     return buildExitCode;
 
-return GetExitCode(Dotnet.Test(
-    ["--solution", "Marmotte.Build.slnx", "--configuration", configuration, "--no-build"],
+return GetExitCode(Dotnet.Test(o => o with
+    {
+        Solution = root / "Marmotte.Devops.slnx",
+        Configuration = configuration,
+        NoBuild = true,
+    },
     workingDirectory: root));
 
 static int GetExitCode(ShellExecuteResult result)
@@ -203,9 +222,9 @@ In a file-based build script, include the helper and type `GitHubActions.` to br
 
 ```csharp
 #!/usr/bin/env dotnet
-#:include "src/Marmotte.Build/GitHubActions.cs"
+#:include "src/Marmotte.Build/ContinuousIntegration/GitHubActions.cs"
 
-using Marmotte.Build;
+using Marmotte.Build.ContinuousIntegration;
 
 if (GitHubActions.IsRunning)
     Console.WriteLine($"{GitHubActions.Repository} run #{GitHubActions.RunNumber} on {GitHubActions.Runner.OS}");
@@ -267,13 +286,13 @@ Execution waits for the process to exit. Cancellation, timeouts, asynchronous ex
 ## Use the .NET CLI
 
 ```csharp
-var build = Dotnet.Build(["--configuration", "Release"]);
-var pack = Dotnet.Pack(["--configuration", "Release", "--output", "artifacts"]);
-var tools = Dotnet.Tool(["restore"]);
+var build = Dotnet.Build(o => o with { Configuration = "Release" });
+var pack = Dotnet.Pack(o => o with { Configuration = "Release", Output = "artifacts" });
+var tools = Dotnet.Tool.Restore();
 var info = Dotnet.Execute("--info");
 ```
 
-These are independent examples; handle each result when composing a pipeline. Every wrapper accepts an optional argument collection and `workingDirectory`. Arguments are forwarded to the installed .NET CLI without validation or additional defaults. Use `Dotnet.Execute` for commands without a dedicated wrapper or for global options. See [Dotnet.cs](src/Marmotte.Build/Dotnet.cs) for the complete set of wrappers.
+These are independent examples; handle each result when composing a pipeline. Wrappers accept typed options and an optional `workingDirectory`; commands with required arguments take them before the options callback. Unset options use the installed .NET CLI's defaults. Use `AdditionalArguments` for options without a dedicated property, or `Dotnet.Execute` for raw commands and global options. See the [Dotnet API](src/Marmotte.Build/Dotnet) for the wrappers and the [generator guide](tools/generate-dotnet/README.md) for how they are maintained.
 
 ## Read and update the Git repository
 
@@ -337,9 +356,9 @@ Include the helper in a file-based build script and type `AzureDevOps.Build.` in
 
 ```csharp
 #!/usr/bin/env dotnet
-#:include "src/Marmotte.Build/AzureDevOps.cs"
+#:include "src/Marmotte.Build/ContinuousIntegration/AzureDevOps.cs"
 
-using Marmotte.Build;
+using Marmotte.Build.ContinuousIntegration;
 
 if (AzureDevOps.IsRunning)
     Console.WriteLine($"Build {AzureDevOps.Build.BuildNumber} on {AzureDevOps.Build.SourceBranch}");
@@ -352,20 +371,31 @@ Each property reads a nullable string from the current process environment. A lo
 
 To read `AzureDevOps.System.AccessToken` in a YAML step, explicitly map `SYSTEM_ACCESSTOKEN: $(System.AccessToken)` under the step's `env`. See the [predefined build variables](https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops), [classic release variables](https://learn.microsoft.com/en-us/azure/devops/pipelines/release/variables?view=azure-devops), and [pipeline resource variables](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/resources-pipelines-pipeline?view=azure-pipelines).
 
-## Build and test the library
+## Deploy
+
+Deployment is a separate part of Marmotte.Devops. The current examples validate remote connectivity and file access; they do not yet implement a complete application deployment or rollback workflow.
+
+| Transport | Script | Guide |
+| --- | --- | --- |
+| OpenSSH (`ssh` / `scp`) on Windows, Linux, and macOS | [deploy-ssh.cs](deploy-ssh.cs) | [SSH setup and smoke test](docs/ssh-deploy.md) |
+| PowerShell Remoting / WinRM from Windows | [deploy.cs](deploy.cs), using `Marmotte.Deploy.Windows` | [Windows remoting setup and smoke test](docs/windows-remoting-poc.md) |
+
+Follow the relevant guide to configure a target before running a deployment script. These smoke tests are independent of `build.cs` and are not run by the normal build, test, or package workflow.
+
+## Build and test the solution
 
 From the repository root:
 
 ```sh
-dotnet restore Marmotte.Build.slnx
-dotnet build Marmotte.Build.slnx --configuration Release --no-restore
-dotnet test --solution Marmotte.Build.slnx --configuration Release --no-build --no-restore
+dotnet restore Marmotte.Devops.slnx
+dotnet build Marmotte.Devops.slnx --configuration Release --no-restore
+dotnet test --solution Marmotte.Devops.slnx --configuration Release --no-build --no-restore
 ```
 
 The tests cover path composition and normalization, glob matching, process results, argument handling, working directories, .NET command execution, and Git operations on temporary repositories. Some process tests intentionally invoke failing commands, so their console output includes expected errors. Two tests use the Unix `test` executable and are skipped on Windows.
 
 ## Mascot and license
 
-Marmotte.Build shares the turquoise mascot and red scarf used by [Marmotte.ChatUi](https://github.com/rflechner/Marmotte.ChatUi). Its banner adapts that visual identity to show the mascot coding a C# build pipeline above the Marmotte.Build sign. All images are stored locally; see [image provenance](docs/images/README.md).
+Marmotte.Devops shares the turquoise mascot and red scarf used by [Marmotte.ChatUi](https://github.com/rflechner/Marmotte.ChatUi). Its banner shows the mascot at a laptop with separate Build and Deploy workflows above the Marmotte.Devops sign. A matching [logo](docs/images/marmotte-devops-logo.png) is available for reuse. All images are stored locally; see [image provenance](docs/images/README.md).
 
 Licensed under the [BSD 3-Clause License](LICENSE).

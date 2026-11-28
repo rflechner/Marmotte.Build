@@ -1,6 +1,6 @@
 # generate-dotnet
 
-Generates the typed `Dotnet` API (`src/Marmotte.Build/Dotnet/Dotnet.<Group>.cs`) from the help of the installed .NET SDK.
+Generates the typed `Dotnet` API (`src/Marmotte.Build/Dotnet/Dotnet.<Group>.cs`) for the Build component of [Marmotte.Devops](../../README.md) from the help of the installed .NET SDK.
 
 It is a [file-based app](https://learn.microsoft.com/dotnet/core/sdk/file-based-apps): run it after installing a new
 SDK, to pick up new commands and options:
@@ -9,7 +9,7 @@ SDK, to pick up new commands and options:
 dotnet run tools/generate-dotnet/Generate.cs
 ```
 
-Then review the diff, build and run the tests (`dotnet test`).
+Then review the diff, build `Marmotte.Devops.slnx`, and run the tests (`dotnet test --solution Marmotte.Devops.slnx`).
 
 ## How it works
 
